@@ -1,27 +1,111 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include <array>
+#include <cmath>
 
-//==============================================================================
-/*
-    This component lives inside our window, and this is where you should put all
-    your controls and content.
-*/
-class MainComponent  : public juce::Component
+class MainComponent;
+
+class PadPoint  : public juce::Component
 {
 public:
-    //==============================================================================
+    PadPoint (MainComponent& owner, int pointIndex);
+
+    void paint (juce::Graphics& g) override;
+    bool hitTest (int x, int y) override;
+
+    void mouseDown (const juce::MouseEvent& e) override;
+    void mouseDrag (const juce::MouseEvent& e) override;
+
+    void setRotaryMode (bool shouldShowRotary);
+    void setRotaryValue (float newValue);
+    void setSelectionPulse (float newPulse);
+    void setDevianceValue (float newValue);
+    void setInstabilityValue (float newValue);
+    void setVolumeValue (float newValue);
+    void setMotionPhase (float newPhase);
+    float getRotaryValue() const;
+
+private:
+    MainComponent& owner;
+    int index = 0;
+
+    bool rotaryMode = false;
+    float selectionPulse = 0.0f;
+    float rotaryValue = 0.35f;
+    float devianceValue = 0.0f;
+    float instabilityValue = 0.0f;
+    float volumeValue = 1.0f;
+    float motionPhase = 0.0f;
+
+    float dragStartY = 0.0f;
+    float dragStartValue = 0.0f;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PadPoint)
+};
+
+class MainComponent  : public juce::Component,
+                       public juce::FileDragAndDropTarget,
+                       private juce::Timer
+{
+public:
     MainComponent();
     ~MainComponent() override;
 
-    //==============================================================================
     void paint (juce::Graphics&) override;
     void resized() override;
+    void mouseDown (const juce::MouseEvent&) override;
+
+    bool isInterestedInFileDrag (const juce::StringArray& files) override;
+    void filesDropped (const juce::StringArray& files, int x, int y) override;
 
 private:
-    //==============================================================================
-    // Your private member variables go here...
+    friend class PadPoint;
 
+    void timerCallback() override;
+
+    bool hasActiveDevianceMotion() const;
+    bool hasActiveSelectionPulse() const;
+
+    void updateLayout();
+    void activateXYPad();
+
+    void updatePointModes();
+    void layoutPadPoints();
+    void movePadPoint (int index, juce::Point<float> parentPosition);
+    void setPointRotaryValue (int index, float value);
+    void selectPadFromPoint (int index, bool triggerPulse);
+    void triggerSelectionPulse (int index);
+
+    void drawEmptyButton (juce::Graphics& g,
+                          juce::Rectangle<float> bounds,
+                          bool selected,
+                          const juce::String& textInside = {},
+                          juce::Colour selectedColour = juce::Colour::fromRGB (235, 58, 58));
+
+    void drawMultiDirectionCross (juce::Graphics& g, juce::Rectangle<float> bounds);
+
+    int findClickedButton (const std::array<juce::Rectangle<float>, 8>& buttons,
+                           juce::Point<float> point) const;
+
+    std::array<juce::Rectangle<float>, 8> topButtons;
+    std::array<juce::Rectangle<float>, 8> padButtons;
+    std::array<std::unique_ptr<PadPoint>, 8> xyPoints;
+
+    std::array<juce::Point<float>, 8> pointPositions;
+    std::array<juce::Point<float>, 8> pointTargets;
+    std::array<std::array<float, 8>, 8> pointRotaryValues {};
+    std::array<float, 8> padSelectionPulse {};
+    std::array<float, 8> pointSelectionPulse {};
+
+    juce::Rectangle<float> xyPad;
+
+    int selectedTopButton = 0;
+    int selectedPadButton = 0;
+
+    bool xyPadActivated = false;
+    float xyAnimationProgress = 0.0f;
+    float devianceMotionPhase = 0.0f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };
