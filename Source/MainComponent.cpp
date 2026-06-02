@@ -77,24 +77,86 @@ void PadPoint::paint (juce::Graphics& g)
         const auto rotaryArea = juce::Rectangle<float> (rotarySize, rotarySize)
                                     .withCentre (centre);
 
-        g.setColour (juce::Colours::white.withAlpha (0.18f));
-        g.drawEllipse (rotaryArea, 2.0f);
+        if (owner.selectedTopButton == 1 || owner.selectedTopButton == 6)
+        {
+            const float radius = rotarySize * 0.5f;
+            const bool isPitch = owner.selectedTopButton == 1;
 
-        juce::Path valueArc;
-        const float start = -juce::MathConstants<float>::halfPi;
-        const float end = start + juce::MathConstants<float>::twoPi * rotaryValue;
+            if (isPitch)
+            {
+                const int dashCount = 24;
+                const float dashRatio = 0.48f;
 
-        valueArc.addCentredArc (centre.x,
-                                centre.y,
-                                rotarySize * 0.5f,
-                                rotarySize * 0.5f,
-                                0.0f,
-                                start,
-                                end,
-                                true);
+                g.setColour (juce::Colours::white.withAlpha (0.22f));
 
-        g.setColour (activeColour);
-        g.strokePath (valueArc, juce::PathStrokeType (3.0f));
+                for (int i = 0; i < dashCount; ++i)
+                {
+                    const float a0 = juce::MathConstants<float>::twoPi * ((float) i / (float) dashCount);
+                    const float a1 = juce::MathConstants<float>::twoPi * (((float) i + dashRatio) / (float) dashCount);
+
+                    g.drawLine (centre.x + std::cos (a0) * radius,
+                                centre.y + std::sin (a0) * radius,
+                                centre.x + std::cos (a1) * radius,
+                                centre.y + std::sin (a1) * radius,
+                                2.0f);
+                }
+            }
+            else
+            {
+                g.setColour (juce::Colours::white.withAlpha (0.18f));
+                g.drawEllipse (rotaryArea, 2.0f);
+            }
+
+            const float bipolarValue = (rotaryValue - 0.5f) * 2.0f;
+            const float top = 0.0f;
+
+            if (std::abs (bipolarValue) > 0.01f)
+            {
+                juce::Path valueArc;
+
+                if (bipolarValue > 0.0f)
+                    valueArc.addCentredArc (centre.x, centre.y, radius, radius, 0.0f,
+                                            top, top + bipolarValue * juce::MathConstants<float>::pi, true);
+                else
+                    valueArc.addCentredArc (centre.x, centre.y, radius, radius, 0.0f,
+                                            top + bipolarValue * juce::MathConstants<float>::pi, top, true);
+
+                g.setColour (activeColour);
+                g.strokePath (valueArc, juce::PathStrokeType (3.2f));
+            }
+
+            g.setColour (activeColour);
+            g.fillEllipse (centre.x - 2.0f, centre.y - radius - 2.0f, 4.0f, 4.0f);
+
+            if (isPitch)
+            {
+                g.setColour (juce::Colours::white.withAlpha (0.58f));
+                g.setFont (juce::FontOptions (9.5f));
+                g.drawFittedText ("-6", rotaryArea.translated (-18.0f, 0.0f).toNearestInt(), juce::Justification::centredLeft, 1);
+                g.drawFittedText ("+6", rotaryArea.translated (18.0f, 0.0f).toNearestInt(), juce::Justification::centredRight, 1);
+            }
+        }
+        else
+        {
+            g.setColour (juce::Colours::white.withAlpha (0.18f));
+            g.drawEllipse (rotaryArea, 2.0f);
+
+            juce::Path valueArc;
+            const float start = -juce::MathConstants<float>::halfPi;
+            const float end = start + juce::MathConstants<float>::twoPi * rotaryValue;
+
+            valueArc.addCentredArc (centre.x,
+                                    centre.y,
+                                    rotarySize * 0.5f,
+                                    rotarySize * 0.5f,
+                                    0.0f,
+                                    start,
+                                    end,
+                                    true);
+
+            g.setColour (activeColour);
+            g.strokePath (valueArc, juce::PathStrokeType (3.0f));
+        }
     }
 
     const float visualDotSize = juce::jmap (volumeValue, 0.0f, 1.0f, 8.0f, pointDotSize);
@@ -134,17 +196,17 @@ void PadPoint::paint (juce::Graphics& g)
         const float pulseExpansion = 8.0f + (1.0f - selectionPulse) * 12.0f;
         const auto pulseArea = dotArea.expanded (pulseExpansion);
 
-        g.setColour (juce::Colour::fromRGB (45, 215, 105).withAlpha (0.18f * selectionPulse));
+        g.setColour (juce::Colour::fromRGB (70, 205, 255).withAlpha (0.18f * selectionPulse));
         g.fillEllipse (pulseArea);
 
-        g.setColour (juce::Colour::fromRGB (45, 215, 105).withAlpha (0.65f * selectionPulse));
+        g.setColour (juce::Colour::fromRGB (70, 205, 255).withAlpha (0.65f * selectionPulse));
         g.drawEllipse (pulseArea, 2.0f);
     }
 
     g.setColour (juce::Colours::white.withAlpha (0.88f));
     g.fillEllipse (dotArea);
 
-    g.setColour (selectionPulse > 0.01f ? juce::Colour::fromRGB (45, 215, 105)
+    g.setColour (selectionPulse > 0.01f ? juce::Colour::fromRGB (70, 205, 255)
                                          : juce::Colours::white.withAlpha (0.38f));
     g.drawEllipse (dotArea, selectionPulse > 0.01f ? 2.2f : 1.5f);
 
@@ -258,7 +320,9 @@ MainComponent::MainComponent()
     for (auto& valuesForTopButton : pointRotaryValues)
         valuesForTopButton.fill (0.35f);
 
+    pointRotaryValues[1].fill (0.5f);
     pointRotaryValues[4].fill (0.0f);
+    pointRotaryValues[6].fill (0.5f);
     pointRotaryValues[5].fill (0.0f);
     pointRotaryValues[7].fill (1.0f);
 
@@ -349,13 +413,18 @@ void MainComponent::paint (juce::Graphics& g)
             const auto pulse = padSelectionPulse[(size_t) i];
             const auto pulseArea = padButtons[(size_t) i].reduced (1.0f);
 
-            g.setColour (juce::Colour::fromRGB (45, 215, 105).withAlpha (0.16f * pulse));
+            g.setColour (juce::Colour::fromRGB (70, 205, 255).withAlpha (0.16f * pulse));
             g.fillRoundedRectangle (pulseArea, 6.0f);
 
-            g.setColour (juce::Colour::fromRGB (45, 215, 105).withAlpha (0.65f * pulse));
+            g.setColour (juce::Colour::fromRGB (70, 205, 255).withAlpha (0.65f * pulse));
             g.drawRoundedRectangle (pulseArea, 6.0f, 1.6f);
         }
     }
+}
+
+void MainComponent::paintOverChildren (juce::Graphics& g)
+{
+    drawPointConnections (g);
 }
 
 void MainComponent::resized()
@@ -542,6 +611,43 @@ void MainComponent::layoutPadPoints()
     }
 }
 
+void MainComponent::drawPointConnections (juce::Graphics& g)
+{
+    if (! xyPadActivated)
+        return;
+
+    g.setColour (juce::Colours::white.withAlpha (0.075f));
+
+    for (int i = 0; i < 8; ++i)
+    {
+        int closest = -1;
+        float closestDistance = std::numeric_limits<float>::max();
+
+        for (int j = 0; j < 8; ++j)
+        {
+            if (i == j)
+                continue;
+
+            const auto distance = pointPositions[(size_t) i].getDistanceFrom (pointPositions[(size_t) j]);
+
+            if (distance < closestDistance)
+            {
+                closestDistance = distance;
+                closest = j;
+            }
+        }
+
+        if (closest > i)
+        {
+            g.drawLine (pointPositions[(size_t) i].x,
+                        pointPositions[(size_t) i].y,
+                        pointPositions[(size_t) closest].x,
+                        pointPositions[(size_t) closest].y,
+                        1.0f);
+        }
+    }
+}
+
 void MainComponent::movePadPoint (int index, juce::Point<float> parentPosition)
 {
     if (! xyPadActivated || selectedTopButton != 0)
@@ -555,6 +661,7 @@ void MainComponent::movePadPoint (int index, juce::Point<float> parentPosition)
     };
 
     layoutPadPoints();
+    repaint (xyPad.toNearestInt());
 }
 
 void MainComponent::setPointRotaryValue (int index, float value)

@@ -53,6 +53,7 @@ public:
     ~MainComponent() override;
 
     void paint (juce::Graphics&) override;
+    void paintOverChildren (juce::Graphics&) override;
     void resized() override;
     void mouseDown (const juce::MouseEvent&) override;
 
@@ -72,6 +73,7 @@ private:
 
     void updatePointModes();
     void layoutPadPoints();
+    void drawPointConnections (juce::Graphics& g);
     void movePadPoint (int index, juce::Point<float> parentPosition);
     void setPointRotaryValue (int index, float value);
     void selectPadFromPoint (int index, bool triggerPulse);
