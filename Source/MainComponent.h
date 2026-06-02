@@ -3,6 +3,7 @@
 #include <JuceHeader.h>
 #include <array>
 #include <cmath>
+#include <vector>
 
 class MainComponent;
 
@@ -20,6 +21,7 @@ public:
     void setRotaryMode (bool shouldShowRotary);
     void setRotaryValue (float newValue);
     void setSelectionPulse (float newPulse);
+    void setSelectedHighlight (bool shouldBeSelected);
     void setDevianceValue (float newValue);
     void setInstabilityValue (float newValue);
     void setVolumeValue (float newValue);
@@ -31,6 +33,7 @@ private:
     int index = 0;
 
     bool rotaryMode = false;
+    bool selectedHighlight = false;
     float selectionPulse = 0.0f;
     float rotaryValue = 0.35f;
     float devianceValue = 0.0f;
@@ -56,6 +59,8 @@ public:
     void paintOverChildren (juce::Graphics&) override;
     void resized() override;
     void mouseDown (const juce::MouseEvent&) override;
+    void mouseMove (const juce::MouseEvent&) override;
+    void mouseExit (const juce::MouseEvent&) override;
 
     bool isInterestedInFileDrag (const juce::StringArray& files) override;
     void filesDropped (const juce::StringArray& files, int x, int y) override;
@@ -70,6 +75,7 @@ private:
 
     void updateLayout();
     void activateXYPad();
+    bool loadWaveformFromWavFile (const juce::File& file);
 
     void updatePointModes();
     void layoutPadPoints();
@@ -82,7 +88,7 @@ private:
     void drawEmptyButton (juce::Graphics& g,
                           juce::Rectangle<float> bounds,
                           bool selected,
-                          const juce::String& textInside = {},
+                          bool hovered,
                           juce::Colour selectedColour = juce::Colour::fromRGB (235, 58, 58));
 
     void drawMultiDirectionCross (juce::Graphics& g, juce::Rectangle<float> bounds);
@@ -101,9 +107,18 @@ private:
     std::array<float, 8> pointSelectionPulse {};
 
     juce::Rectangle<float> xyPad;
+    juce::Rectangle<float> samplePlayer;
+
+    std::vector<float> waveformPeaks;
+    bool sampleLoaded = false;
+
+    juce::Image guideImage;
 
     int selectedTopButton = 0;
     int selectedPadButton = 0;
+
+    int hoveredTopButton = -1;
+    int hoveredPadButton = -1;
 
     bool xyPadActivated = false;
     float xyAnimationProgress = 0.0f;
