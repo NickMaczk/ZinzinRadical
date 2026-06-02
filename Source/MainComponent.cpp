@@ -293,7 +293,7 @@ void MainComponent::paint (juce::Graphics& g)
                                              .translated (0, -22)
                                              .withHeight (18);
 
-        g.setColour (getTopButtonColour (i).withAlpha (0.88f));
+        g.setColour (juce::Colours::white.withAlpha (0.72f));
         g.drawFittedText (topButtonLabels[(size_t) i],
                           labelArea,
                           juce::Justification::centred,
