@@ -59,6 +59,8 @@ public:
     void paintOverChildren (juce::Graphics&) override;
     void resized() override;
     void mouseDown (const juce::MouseEvent&) override;
+    void mouseDrag (const juce::MouseEvent&) override;
+    void mouseUp (const juce::MouseEvent&) override;
     void mouseMove (const juce::MouseEvent&) override;
     void mouseExit (const juce::MouseEvent&) override;
 
@@ -75,6 +77,7 @@ private:
 
     void updateLayout();
     void activateXYPad();
+    void changeSelectedOnset (int direction);
     bool loadWaveformFromWavFile (const juce::File& file);
 
     void updatePointModes();
@@ -84,6 +87,8 @@ private:
     void setPointRotaryValue (int index, float value);
     void selectPadFromPoint (int index, bool triggerPulse);
     void triggerSelectionPulse (int index);
+    void startPadRename (int index);
+    void finishPadRename (bool shouldCommit);
 
     void drawEmptyButton (juce::Graphics& g,
                           juce::Rectangle<float> bounds,
@@ -99,8 +104,13 @@ private:
     int findClickedButton (const std::array<juce::Rectangle<float>, 2>& buttons,
                            juce::Point<float> point) const;
 
+    int findClickedButton (const std::array<juce::Rectangle<float>, 16>& buttons,
+                           juce::Point<float> point) const;
+
     std::array<juce::Rectangle<float>, 8> topButtons;
     std::array<juce::Rectangle<float>, 8> padButtons;
+    std::array<juce::Rectangle<float>, 8> padRenameButtons;
+    std::array<juce::Rectangle<float>, 16> padUtilityButtons;
     std::array<std::unique_ptr<PadPoint>, 8> xyPoints;
 
     std::array<juce::Point<float>, 8> pointPositions;
@@ -108,6 +118,9 @@ private:
     std::array<std::array<float, 8>, 8> pointRotaryValues {};
     std::array<float, 8> padSelectionPulse {};
     std::array<float, 8> pointSelectionPulse {};
+    std::array<juce::String, 8> padLabels {};
+    juce::TextEditor padRenameEditor;
+    int renamingPad = -1;
 
     juce::Rectangle<float> xyPad;
     juce::Rectangle<float> samplePlayer;
@@ -125,6 +138,15 @@ private:
     int hoveredPadButton = -1;
     int hoveredSampleButton = -1;
     int selectedSampleButton = -1;
+    int selectedOnsetIndex = 3;
+    int hoveredPadUtilityButton = -1;
+    int hoveredPadRenameButton = -1;
+    int pressedPadUtilityButton = -1;
+
+    std::array<bool, 8> padLocks {};
+
+    bool draggingPadExport = false;
+    juce::Point<float> exportDragPosition;
 
     bool xyPadActivated = false;
     float xyAnimationProgress = 0.0f;

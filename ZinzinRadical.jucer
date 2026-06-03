@@ -9,6 +9,7 @@
       <FILE id="KFdRsl" name="MainComponent.cpp" compile="1" resource="0"
             file="Source/MainComponent.cpp"/>
     </GROUP>
+    <FILE id="g9WHi7" name="guide.png" compile="0" resource="1" file="Assets/guide.png"/>
   </MAINGROUP>
   <MODULES>
     <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
