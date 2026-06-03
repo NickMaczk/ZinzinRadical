@@ -96,6 +96,9 @@ private:
     int findClickedButton (const std::array<juce::Rectangle<float>, 8>& buttons,
                            juce::Point<float> point) const;
 
+    int findClickedButton (const std::array<juce::Rectangle<float>, 2>& buttons,
+                           juce::Point<float> point) const;
+
     std::array<juce::Rectangle<float>, 8> topButtons;
     std::array<juce::Rectangle<float>, 8> padButtons;
     std::array<std::unique_ptr<PadPoint>, 8> xyPoints;
@@ -108,6 +111,7 @@ private:
 
     juce::Rectangle<float> xyPad;
     juce::Rectangle<float> samplePlayer;
+    std::array<juce::Rectangle<float>, 2> sampleButtons;
 
     std::vector<float> waveformPeaks;
     bool sampleLoaded = false;
@@ -119,6 +123,8 @@ private:
 
     int hoveredTopButton = -1;
     int hoveredPadButton = -1;
+    int hoveredSampleButton = -1;
+    int selectedSampleButton = -1;
 
     bool xyPadActivated = false;
     float xyAnimationProgress = 0.0f;

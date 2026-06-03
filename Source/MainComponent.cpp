@@ -1,5 +1,8 @@
 #include "MainComponent.h"
 
+#include <cstring>
+#include <cstdint>
+
 namespace
 {
     constexpr float pointComponentSize = 280.0f;
@@ -21,6 +24,63 @@ namespace
         }
 
         return {};
+    }
+
+    bool hasTag (const char* data, size_t size, size_t offset, const char* tag)
+    {
+        return offset + 4 <= size && std::memcmp (data + offset, tag, 4) == 0;
+    }
+
+    uint16_t readU16LE (const char* data, size_t offset)
+    {
+        return (uint16_t) ((uint8_t) data[offset] | ((uint8_t) data[offset + 1] << 8));
+    }
+
+    uint32_t readU32LE (const char* data, size_t offset)
+    {
+        return (uint32_t) ((uint8_t) data[offset]
+             | ((uint8_t) data[offset + 1] << 8)
+             | ((uint8_t) data[offset + 2] << 16)
+             | ((uint8_t) data[offset + 3] << 24));
+    }
+
+    float readSampleValue (const char* p, uint16_t audioFormat, uint16_t bitsPerSample)
+    {
+        if (audioFormat == 3 && bitsPerSample == 32)
+        {
+            float v = 0.0f;
+            std::memcpy (&v, p, sizeof (float));
+            return juce::jlimit (-1.0f, 1.0f, v);
+        }
+
+        if (audioFormat != 1)
+            return 0.0f;
+
+        if (bitsPerSample == 16)
+        {
+            const auto v = (int16_t) ((uint8_t) p[0] | ((uint8_t) p[1] << 8));
+            return (float) v / 32768.0f;
+        }
+
+        if (bitsPerSample == 24)
+        {
+            int32_t v = ((uint8_t) p[0])
+                      | ((uint8_t) p[1] << 8)
+                      | ((uint8_t) p[2] << 16);
+
+            if (v & 0x800000)
+                v |= ~0xFFFFFF;
+
+            return (float) v / 8388608.0f;
+        }
+
+        if (bitsPerSample == 32)
+        {
+            const int32_t v = (int32_t) readU32LE (p, 0);
+            return (float) v / 2147483648.0f;
+        }
+
+        return 0.0f;
     }
 
     juce::Colour getTopButtonColour (int index)
@@ -389,13 +449,31 @@ void MainComponent::paint (juce::Graphics& g)
                          getTopButtonColour (i));
     }
 
-    g.setColour (juce::Colours::black);
-    g.fillRoundedRectangle (samplePlayer, 6.0f);
+    if (sampleLoaded && ! waveformPeaks.empty())
+    {
+        const auto waveArea = samplePlayer;
+        const auto centreY = waveArea.getCentreY();
+        const auto count = (int) waveformPeaks.size();
 
-    g.setColour (juce::Colours::white.withAlpha (0.10f));
-    g.drawRoundedRectangle (samplePlayer, 6.0f, 1.0f);
+        g.setColour (juce::Colours::white.withAlpha (0.18f));
+        g.drawLine (waveArea.getX(), centreY, waveArea.getRight(), centreY, 1.0f);
 
-    if (! xyPadActivated)
+        g.setColour (juce::Colours::white.withAlpha (0.92f));
+
+        for (int i = 0; i < count; ++i)
+        {
+            const float x = juce::jmap ((float) i,
+                                        0.0f,
+                                        (float) juce::jmax (1, count - 1),
+                                        waveArea.getX(),
+                                        waveArea.getRight());
+
+            const float h = juce::jmax (1.0f, waveformPeaks[(size_t) i] * waveArea.getHeight() * 0.5f);
+            g.drawLine (x, centreY - h, x, centreY + h, 2.0f);
+        }
+
+    }
+    else
     {
         g.setColour (juce::Colours::white.withAlpha (0.52f));
         g.setFont (juce::FontOptions (15.0f));
@@ -403,6 +481,15 @@ void MainComponent::paint (juce::Graphics& g)
                           samplePlayer.toNearestInt(),
                           juce::Justification::centred,
                           1);
+    }
+
+    for (int i = 0; i < 2; ++i)
+    {
+        drawEmptyButton (g,
+                         sampleButtons[(size_t) i],
+                         selectedSampleButton == i,
+                         hoveredSampleButton == i,
+                         juce::Colours::white);
     }
 }
 
@@ -429,6 +516,12 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         return;
     }
 
+    if (const auto button = findClickedButton (sampleButtons, point); button >= 0)
+    {
+        selectedSampleButton = button;
+        repaint();
+        return;
+    }
 }
 
 void MainComponent::mouseMove (const juce::MouseEvent& e)
@@ -436,34 +529,52 @@ void MainComponent::mouseMove (const juce::MouseEvent& e)
     const auto point = e.position;
 
     const auto newHoveredTopButton = findClickedButton (topButtons, point);
+    const auto newHoveredSampleButton = findClickedButton (sampleButtons, point);
 
-    if (hoveredTopButton != newHoveredTopButton || hoveredPadButton != -1)
+    if (hoveredTopButton != newHoveredTopButton
+        || hoveredPadButton != -1
+        || hoveredSampleButton != newHoveredSampleButton)
     {
         hoveredTopButton = newHoveredTopButton;
         hoveredPadButton = -1;
+        hoveredSampleButton = newHoveredSampleButton;
         repaint();
     }
 }
 
 void MainComponent::mouseExit (const juce::MouseEvent&)
 {
-    if (hoveredTopButton != -1 || hoveredPadButton != -1)
+    if (hoveredTopButton != -1 || hoveredPadButton != -1 || hoveredSampleButton != -1)
     {
         hoveredTopButton = -1;
         hoveredPadButton = -1;
+        hoveredSampleButton = -1;
         repaint();
     }
 }
 
-bool MainComponent::isInterestedInFileDrag (const juce::StringArray&)
+bool MainComponent::isInterestedInFileDrag (const juce::StringArray& files)
 {
-    return true;
+    for (const auto& path : files)
+        if (juce::File (path).hasFileExtension ("wav"))
+            return true;
+
+    return false;
 }
 
-void MainComponent::filesDropped (const juce::StringArray&, int x, int y)
+void MainComponent::filesDropped (const juce::StringArray& files, int x, int y)
 {
-    if (samplePlayer.contains (juce::Point<float> ((float) x, (float) y)))
+    if (! samplePlayer.contains (juce::Point<float> ((float) x, (float) y)))
+        return;
+
+    if (files.isEmpty())
+        return;
+
+    if (loadWaveformFromWavFile (juce::File (files[0])))
+    {
         activateXYPad();
+        repaint();
+    }
 }
 
 void MainComponent::timerCallback()
@@ -516,15 +627,120 @@ bool MainComponent::hasActiveSelectionPulse() const
     return false;
 }
 
+bool MainComponent::loadWaveformFromWavFile (const juce::File& file)
+{
+    waveformPeaks.clear();
+    sampleLoaded = false;
+
+    if (! file.hasFileExtension ("wav"))
+        return false;
+
+    juce::MemoryBlock bytes;
+
+    if (! file.loadFileAsData (bytes))
+        return false;
+
+    const auto* data = static_cast<const char*> (bytes.getData());
+    const auto size = bytes.getSize();
+
+    if (size < 44 || ! hasTag (data, size, 0, "RIFF") || ! hasTag (data, size, 8, "WAVE"))
+        return false;
+
+    uint16_t audioFormat = 0;
+    uint16_t channels = 0;
+    uint16_t bitsPerSample = 0;
+    uint16_t blockAlign = 0;
+
+    size_t audioDataStart = 0;
+    size_t audioDataSize = 0;
+
+    size_t offset = 12;
+
+    while (offset + 8 <= size)
+    {
+        const auto chunkSize = (size_t) readU32LE (data, offset + 4);
+        const auto chunkData = offset + 8;
+
+        if (chunkData + chunkSize > size)
+            break;
+
+        if (hasTag (data, size, offset, "fmt ") && chunkSize >= 16)
+        {
+            audioFormat = readU16LE (data, chunkData + 0);
+            channels = readU16LE (data, chunkData + 2);
+            blockAlign = readU16LE (data, chunkData + 12);
+            bitsPerSample = readU16LE (data, chunkData + 14);
+        }
+        else if (hasTag (data, size, offset, "data"))
+        {
+            audioDataStart = chunkData;
+            audioDataSize = chunkSize;
+        }
+
+        offset = chunkData + chunkSize + (chunkSize & 1u);
+    }
+
+    if (channels == 0 || blockAlign == 0 || audioDataStart == 0 || audioDataSize == 0)
+        return false;
+
+    if (! ((audioFormat == 1 && (bitsPerSample == 16 || bitsPerSample == 24 || bitsPerSample == 32))
+        || (audioFormat == 3 && bitsPerSample == 32)))
+        return false;
+
+    const auto frameCount = audioDataSize / blockAlign;
+
+    if (frameCount == 0)
+        return false;
+
+    constexpr int peakCount = 256;
+    waveformPeaks.assign ((size_t) peakCount, 0.0f);
+
+    const auto bytesPerSample = bitsPerSample / 8;
+    const auto* sampleData = data + audioDataStart;
+
+    for (int peakIndex = 0; peakIndex < peakCount; ++peakIndex)
+    {
+        const auto startFrame = (size_t) ((uint64_t) peakIndex * frameCount / peakCount);
+        const auto endFrame = (size_t) ((uint64_t) (peakIndex + 1) * frameCount / peakCount);
+
+        float peak = 0.0f;
+
+        for (size_t frame = startFrame; frame < endFrame; ++frame)
+        {
+            const auto* framePtr = sampleData + frame * blockAlign;
+
+            for (uint16_t channel = 0; channel < channels; ++channel)
+            {
+                const auto* samplePtr = framePtr + channel * bytesPerSample;
+                peak = juce::jmax (peak, std::abs (readSampleValue (samplePtr, audioFormat, bitsPerSample)));
+            }
+        }
+
+        waveformPeaks[(size_t) peakIndex] = juce::jlimit (0.0f, 1.0f, peak);
+    }
+
+    float maxPeak = 0.0f;
+
+    for (auto peak : waveformPeaks)
+        maxPeak = juce::jmax (maxPeak, peak);
+
+    if (maxPeak > 0.001f)
+        for (auto& peak : waveformPeaks)
+            peak = juce::jlimit (0.0f, 1.0f, peak / maxPeak);
+
+    sampleLoaded = true;
+    return true;
+}
+
 void MainComponent::updateLayout()
 {
     // Layout matched to the 2x guide coordinates provided by Nicolas.
 
-    xyPad = { 33.0f, 168.0f, 568.0f, 568.0f };
+    xyPad = { 33.0f, 152.0f, 568.0f, 568.0f };
 
-    topButtons[0] = { 32.0f, 120.0f, 32.0f, 32.0f };
+    topButtons[0] = { 32.0f, 736.0f, 32.0f, 32.0f };
 
-    const float topY = 120.0f;
+    const float topY = 736.0f;
     const float topParamX = 105.0f;
     const float topParamWidth = 64.0f;
     const float topParamHeight = 32.0f;
@@ -538,7 +754,10 @@ void MainComponent::updateLayout()
         x += topParamWidth + topParamGap;
     }
 
-    samplePlayer = { 32.0f, 752.0f, 568.0f, 64.0f };
+    samplePlayer = { 32.0f, 72.0f, 536.0f, 64.0f };
+
+    sampleButtons[0] = { 568.0f, 72.0f, 32.0f, 32.0f };
+    sampleButtons[1] = { 568.0f, 104.0f, 32.0f, 32.0f };
 
     for (auto& padButton : padButtons)
         padButton = {};
@@ -756,6 +975,16 @@ int MainComponent::findClickedButton (const std::array<juce::Rectangle<float>, 8
                                       juce::Point<float> point) const
 {
     for (int i = 0; i < 8; ++i)
+        if (buttons[(size_t) i].contains (point))
+            return i;
+
+    return -1;
+}
+
+int MainComponent::findClickedButton (const std::array<juce::Rectangle<float>, 2>& buttons,
+                                      juce::Point<float> point) const
+{
+    for (int i = 0; i < 2; ++i)
         if (buttons[(size_t) i].contains (point))
             return i;
 
