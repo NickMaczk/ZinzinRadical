@@ -90,11 +90,27 @@ namespace
             case 1:  return juce::Colour::fromRGB (255, 43, 214);  // pitch / hot pink
             case 2:  return juce::Colour::fromRGB (255, 91, 31);   // length / sanguine orange
             case 3:  return juce::Colour::fromRGB (0, 229, 255);   // super / electric cyan
-            case 4:  return juce::Colour::fromRGB (178, 255, 36);  // instability / acid lime
-            case 5:  return juce::Colour::fromRGB (155, 92, 255);  // deviance / violet
+            case 4:  return juce::Colour::fromRGB (155, 92, 255);  // deviance / violet
+            case 5:  return juce::Colour::fromRGB (178, 255, 36);  // instability / acid lime
             case 6:  return juce::Colour::fromRGB (56, 130, 255);  // pan / electric blue
             case 7:  return juce::Colour::fromRGB (255, 218, 46);  // vol / hot yellow
             default: return juce::Colour::fromRGB (235, 58, 58);
+        }
+    }
+
+    juce::Colour getPadColour (int index)
+    {
+        switch (index)
+        {
+            case 0:  return juce::Colour::fromRGB (0, 229, 255);
+            case 1:  return juce::Colour::fromRGB (255, 43, 214);
+            case 2:  return juce::Colour::fromRGB (255, 91, 31);
+            case 3:  return juce::Colour::fromRGB (178, 255, 36);
+            case 4:  return juce::Colour::fromRGB (155, 92, 255);
+            case 5:  return juce::Colour::fromRGB (56, 130, 255);
+            case 6:  return juce::Colour::fromRGB (255, 218, 46);
+            case 7:  return juce::Colour::fromRGB (255, 58, 92);
+            default: return juce::Colours::white;
         }
     }
 }
@@ -111,6 +127,7 @@ void PadPoint::paint (juce::Graphics& g)
     const auto bounds = getLocalBounds().toFloat();
     const auto centre = bounds.getCentre();
     const auto activeColour = getTopButtonColour (owner.selectedTopButton);
+    const auto padColour = getPadColour (index);
 
     const float dotMotionRadius = juce::jmap (devianceValue, 0.0f, 1.0f, 0.0f, 80.0f);
 
@@ -246,10 +263,10 @@ void PadPoint::paint (juce::Graphics& g)
         const float haloExpand = juce::jmap (devianceValue, 0.0f, 1.0f, 20.0f, 112.0f);
         const auto haloArea = devianceBaseArea.expanded (haloExpand);
 
-        g.setColour (getTopButtonColour (5).withAlpha (0.055f));
+        g.setColour (getTopButtonColour (4).withAlpha (0.055f));
         g.fillEllipse (haloArea);
 
-        g.setColour (getTopButtonColour (5).withAlpha (0.22f));
+        g.setColour (getTopButtonColour (4).withAlpha (0.22f));
         g.drawEllipse (haloArea, 1.0f);
     }
 
@@ -261,10 +278,10 @@ void PadPoint::paint (juce::Graphics& g)
 
     if (devianceValue > 0.01f)
     {
-        g.setColour (getTopButtonColour (5).withAlpha (0.24f));
+        g.setColour (padColour.withAlpha (0.28f));
         g.fillEllipse (ghostDotArea);
 
-        g.setColour (getTopButtonColour (5).withAlpha (0.50f));
+        g.setColour (padColour.withAlpha (0.58f));
         g.drawEllipse (ghostDotArea, 1.2f);
     }
 
@@ -281,28 +298,28 @@ void PadPoint::paint (juce::Graphics& g)
 
     if (selectionPulse > 0.01f)
     {
-        const float pulseExpansion = 8.0f + (1.0f - selectionPulse) * 12.0f;
+        const float pulseExpansion = 32.0f + (1.0f - selectionPulse) * 48.0f;
         const auto pulseArea = dotArea.expanded (pulseExpansion);
 
-        g.setColour (juce::Colours::white.withAlpha (0.18f * selectionPulse));
+        g.setColour (juce::Colours::white.withAlpha (0.36f * selectionPulse));
         g.fillEllipse (pulseArea);
     }
 
-    g.setColour (juce::Colours::white.withAlpha (0.88f));
+    g.setColour (padColour.withAlpha (0.92f));
     g.fillEllipse (dotArea);
 
-    g.setColour (selectionPulse > 0.01f ? juce::Colour::fromRGB (70, 205, 255)
-                                         : juce::Colours::white.withAlpha (0.38f));
+    g.setColour (selectionPulse > 0.01f ? juce::Colours::white
+                                         : padColour.brighter (0.35f));
     g.drawEllipse (dotArea, selectionPulse > 0.01f ? 2.2f : 1.5f);
 
     g.setColour (juce::Colours::white.withAlpha (0.72f));
-    g.setFont (juce::FontOptions (11.0f));
-    g.drawFittedText (juce::String (index + 1),
+    g.setFont (juce::FontOptions (10.0f));
+    g.drawFittedText (owner.padLabels[(size_t) index],
                       juce::Rectangle<int> ((int) centre.x + 13,
                                             (int) centre.y - 8,
-                                            14,
+                                            48,
                                             16),
-                      juce::Justification::centred,
+                      juce::Justification::centredLeft,
                       1);
 }
 
@@ -419,6 +436,20 @@ MainComponent::MainComponent()
     pointRotaryValues[5].fill (0.0f);
     pointRotaryValues[7].fill (1.0f);
 
+    for (int i = 0; i < 8; ++i)
+        padLabels[(size_t) i] = "pad " + juce::String (i + 1);
+
+    addAndMakeVisible (padRenameEditor);
+    padRenameEditor.setVisible (false);
+    padRenameEditor.setSelectAllWhenFocused (true);
+    padRenameEditor.setJustification (juce::Justification::centredLeft);
+    padRenameEditor.setColour (juce::TextEditor::backgroundColourId, juce::Colours::black.withAlpha (0.82f));
+    padRenameEditor.setColour (juce::TextEditor::textColourId, juce::Colours::white);
+    padRenameEditor.setColour (juce::TextEditor::outlineColourId, juce::Colours::white.withAlpha (0.25f));
+    padRenameEditor.onReturnKey = [this] { finishPadRename (true); };
+    padRenameEditor.onEscapeKey = [this] { finishPadRename (false); };
+    padRenameEditor.onFocusLost = [this] { finishPadRename (true); };
+
     setSize (632, 944);
 }
 
@@ -447,6 +478,52 @@ void MainComponent::paint (juce::Graphics& g)
                          selectedTopButton == i,
                          hoveredTopButton == i,
                          getTopButtonColour (i));
+
+        if (i > 0)
+        {
+            const auto valueArea = topButtons[(size_t) i].reduced (8.0f, 8.0f);
+            const bool bipolar = i == 1 || i == 6;
+            const float laneWidth = valueArea.getWidth() / 8.0f;
+            const float barWidth = 3.0f;
+
+            if (bipolar)
+            {
+                g.setColour (juce::Colours::white.withAlpha (0.18f));
+                g.drawLine (valueArea.getX(),
+                            valueArea.getCentreY(),
+                            valueArea.getRight(),
+                            valueArea.getCentreY(),
+                            1.0f);
+            }
+
+            for (int pad = 0; pad < 8; ++pad)
+            {
+                const float value = pointRotaryValues[(size_t) i][(size_t) pad];
+                const float x = valueArea.getX() + laneWidth * (float) pad + laneWidth * 0.5f - barWidth * 0.5f;
+
+                g.setColour (getPadColour (pad).withAlpha (0.90f));
+
+                if (bipolar)
+                {
+                    const float signedValue = (value - 0.5f) * 2.0f;
+                    const float centreY = valueArea.getCentreY();
+                    const float h = std::abs (signedValue) * valueArea.getHeight() * 0.5f;
+
+                    if (signedValue >= 0.0f)
+                        g.fillRect (juce::Rectangle<float> (x, centreY - h, barWidth, h));
+                    else
+                        g.fillRect (juce::Rectangle<float> (x, centreY, barWidth, h));
+                }
+                else
+                {
+                    const float h = value * valueArea.getHeight();
+                    g.fillRect (juce::Rectangle<float> (x,
+                                                        valueArea.getBottom() - h,
+                                                        barWidth,
+                                                        h));
+                }
+            }
+        }
     }
 
     if (sampleLoaded && ! waveformPeaks.empty())
@@ -458,7 +535,7 @@ void MainComponent::paint (juce::Graphics& g)
         g.setColour (juce::Colours::white.withAlpha (0.18f));
         g.drawLine (waveArea.getX(), centreY, waveArea.getRight(), centreY, 1.0f);
 
-        g.setColour (juce::Colours::white.withAlpha (0.92f));
+        g.setColour (juce::Colours::white.withAlpha (0.25f));
 
         for (int i = 0; i < count; ++i)
         {
@@ -470,6 +547,36 @@ void MainComponent::paint (juce::Graphics& g)
 
             const float h = juce::jmax (1.0f, waveformPeaks[(size_t) i] * waveArea.getHeight() * 0.5f);
             g.drawLine (x, centreY - h, x, centreY + h, 2.0f);
+        }
+
+        const std::array<float, 8> onsetPositions {
+            0.07f, 0.18f, 0.31f, 0.44f, 0.56f, 0.69f, 0.82f, 0.94f
+        };
+
+        {
+            const float leftEdge = waveArea.getX() + waveArea.getWidth() * onsetPositions[(size_t) selectedOnsetIndex];
+
+            const float rightEdge = selectedOnsetIndex == 7
+                ? waveArea.getRight()
+                : waveArea.getX() + waveArea.getWidth() * onsetPositions[(size_t) selectedOnsetIndex + 1];
+
+            g.setColour (juce::Colours::white.withAlpha (0.33f));
+            g.fillRect (juce::Rectangle<float> (leftEdge,
+                                                waveArea.getY(),
+                                                rightEdge - leftEdge,
+                                                waveArea.getHeight()));
+        }
+
+        for (int i = 0; i < 8; ++i)
+        {
+            const float x = waveArea.getX() + waveArea.getWidth() * onsetPositions[(size_t) i];
+
+            g.setColour (juce::Colours::white.withAlpha (0.42f));
+            g.drawLine (x,
+                        waveArea.getY() + 4.0f,
+                        x,
+                        waveArea.getBottom() - 4.0f,
+                        2.0f);
         }
 
     }
@@ -487,15 +594,91 @@ void MainComponent::paint (juce::Graphics& g)
     {
         drawEmptyButton (g,
                          sampleButtons[(size_t) i],
-                         selectedSampleButton == i,
+                         false,
                          hoveredSampleButton == i,
                          juce::Colours::white);
+    }
+
+    for (int i = 0; i < 8; ++i)
+    {
+        const auto padLabelArea = juce::Rectangle<float> (48.0f, 16.0f)
+                                      .withPosition (padButtons[(size_t) i].getX(),
+                                                     padButtons[(size_t) i].getY() - 16.0f);
+
+        g.setColour (juce::Colours::white.withAlpha (0.72f));
+        g.setFont (juce::FontOptions (10.0f));
+        g.drawFittedText (padLabels[(size_t) i],
+                          padLabelArea.toNearestInt(),
+                          juce::Justification::centredLeft,
+                          1);
+
+        if (hoveredPadRenameButton == i)
+        {
+            g.setColour (juce::Colours::white.withAlpha (0.12f));
+            g.fillRect (padRenameButtons[(size_t) i]);
+        }
+
+        const auto padAccentArea = padButtons[(size_t) i].reduced (4.0f);
+
+        if (selectedPadButton == i)
+        {
+            g.setColour (getPadColour (i));
+            g.fillRect (padAccentArea.reduced (10.0f));
+        }
+
+        g.setColour (getPadColour (i).withAlpha (0.95f));
+        g.drawRect (padAccentArea.toNearestInt(), 4);
+
+        drawEmptyButton (g,
+                         padButtons[(size_t) i],
+                         false,
+                         hoveredPadButton == i,
+                         getPadColour (i));
+
+        if (padSelectionPulse[(size_t) i] > 0.01f)
+        {
+            const auto pulse = padSelectionPulse[(size_t) i];
+
+            g.setColour (juce::Colours::white.withAlpha (0.36f * pulse));
+            g.fillRect (padButtons[(size_t) i].reduced (1.0f));
+        }
+    }
+
+    for (int pad = 0; pad < 8; ++pad)
+    {
+        const int lockIndex = pad * 2;
+        const int dragIndex = lockIndex + 1;
+
+        const auto lockButton = padUtilityButtons[(size_t) lockIndex];
+        const auto dragButton = padUtilityButtons[(size_t) dragIndex];
+
+        if (hoveredPadUtilityButton == lockIndex || padLocks[(size_t) pad])
+        {
+            g.setColour (juce::Colours::white.withAlpha (padLocks[(size_t) pad] ? 0.22f : 0.08f));
+            g.fillRect (lockButton);
+
+        }
+
+        if (hoveredPadUtilityButton == dragIndex)
+        {
+            g.setColour (juce::Colours::white.withAlpha (0.08f));
+            g.fillRect (dragButton);
+        }
     }
 }
 
 void MainComponent::paintOverChildren (juce::Graphics& g)
 {
     drawPointConnections (g);
+
+    if (draggingPadExport)
+    {
+        const auto dragImage = juce::Rectangle<float> (32.0f, 32.0f)
+                                   .withCentre (exportDragPosition);
+
+        g.setColour (juce::Colours::white.withAlpha (0.88f));
+        g.fillRect (dragImage);
+    }
 }
 
 void MainComponent::resized()
@@ -518,9 +701,60 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
 
     if (const auto button = findClickedButton (sampleButtons, point); button >= 0)
     {
-        selectedSampleButton = button;
+        changeSelectedOnset (button == 0 ? -1 : 1);
+        return;
+    }
+
+    if (const auto button = findClickedButton (padRenameButtons, point); button >= 0)
+    {
+        startPadRename (button);
+        return;
+    }
+
+    if (const auto button = findClickedButton (padButtons, point); button >= 0)
+    {
+        selectedPadButton = button;
+        triggerSelectionPulse (button);
+        updatePointModes();
         repaint();
         return;
+    }
+
+    if (const auto button = findClickedButton (padUtilityButtons, point); button >= 0)
+    {
+        pressedPadUtilityButton = button;
+
+        if ((button % 2) == 0)
+        {
+            const int padIndex = button / 2;
+            padLocks[(size_t) padIndex] = ! padLocks[(size_t) padIndex];
+            repaint();
+            return;
+        }
+
+        exportDragPosition = point;
+        repaint();
+        return;
+    }
+}
+
+void MainComponent::mouseDrag (const juce::MouseEvent& e)
+{
+    if (pressedPadUtilityButton >= 0 && (pressedPadUtilityButton % 2) == 1)
+    {
+        draggingPadExport = true;
+        exportDragPosition = e.position;
+        repaint();
+    }
+}
+
+void MainComponent::mouseUp (const juce::MouseEvent&)
+{
+    if (pressedPadUtilityButton != -1 || draggingPadExport)
+    {
+        pressedPadUtilityButton = -1;
+        draggingPadExport = false;
+        repaint();
     }
 }
 
@@ -529,26 +763,35 @@ void MainComponent::mouseMove (const juce::MouseEvent& e)
     const auto point = e.position;
 
     const auto newHoveredTopButton = findClickedButton (topButtons, point);
+    const auto newHoveredPadButton = findClickedButton (padButtons, point);
     const auto newHoveredSampleButton = findClickedButton (sampleButtons, point);
+    const auto newHoveredPadUtilityButton = findClickedButton (padUtilityButtons, point);
+    const auto newHoveredPadRenameButton = findClickedButton (padRenameButtons, point);
 
     if (hoveredTopButton != newHoveredTopButton
-        || hoveredPadButton != -1
-        || hoveredSampleButton != newHoveredSampleButton)
+        || hoveredPadButton != newHoveredPadButton
+        || hoveredSampleButton != newHoveredSampleButton
+        || hoveredPadUtilityButton != newHoveredPadUtilityButton
+        || hoveredPadRenameButton != newHoveredPadRenameButton)
     {
         hoveredTopButton = newHoveredTopButton;
-        hoveredPadButton = -1;
+        hoveredPadButton = newHoveredPadButton;
         hoveredSampleButton = newHoveredSampleButton;
+        hoveredPadUtilityButton = newHoveredPadUtilityButton;
+        hoveredPadRenameButton = newHoveredPadRenameButton;
         repaint();
     }
 }
 
 void MainComponent::mouseExit (const juce::MouseEvent&)
 {
-    if (hoveredTopButton != -1 || hoveredPadButton != -1 || hoveredSampleButton != -1)
+    if (hoveredTopButton != -1 || hoveredPadButton != -1 || hoveredSampleButton != -1 || hoveredPadUtilityButton != -1 || hoveredPadRenameButton != -1)
     {
         hoveredTopButton = -1;
         hoveredPadButton = -1;
         hoveredSampleButton = -1;
+        hoveredPadUtilityButton = -1;
+        hoveredPadRenameButton = -1;
         repaint();
     }
 }
@@ -575,6 +818,27 @@ void MainComponent::filesDropped (const juce::StringArray& files, int x, int y)
         activateXYPad();
         repaint();
     }
+}
+
+void MainComponent::changeSelectedOnset (int direction)
+{
+    selectedOnsetIndex = (selectedOnsetIndex + direction + 8) % 8;
+
+    if (xyPadActivated)
+    {
+        const auto centre = xyPad.getCentre();
+
+        for (int i = 0; i < 8; ++i)
+            pointPositions[(size_t) i] = centre;
+
+        xyAnimationProgress = 0.0f;
+        layoutPadPoints();
+
+        if (! isTimerRunning())
+            startTimerHz (60);
+    }
+
+    repaint();
 }
 
 void MainComponent::timerCallback()
@@ -612,7 +876,7 @@ void MainComponent::timerCallback()
 bool MainComponent::hasActiveDevianceMotion() const
 {
     for (int i = 0; i < 8; ++i)
-        if (pointRotaryValues[5][(size_t) i] > 0.01f)
+        if (pointRotaryValues[4][(size_t) i] > 0.01f)
             return true;
 
     return false;
@@ -754,19 +1018,34 @@ void MainComponent::updateLayout()
         x += topParamWidth + topParamGap;
     }
 
-    samplePlayer = { 32.0f, 72.0f, 536.0f, 64.0f };
+    samplePlayer = { 32.0f, 72.0f, 528.0f, 64.0f };
 
     sampleButtons[0] = { 568.0f, 72.0f, 32.0f, 32.0f };
     sampleButtons[1] = { 568.0f, 104.0f, 32.0f, 32.0f };
 
-    for (auto& padButton : padButtons)
-        padButton = {};
+    const float padY = 816.0f;
+    const float padButtonSize = 64.0f;
+    const float padButtonGap = 8.0f;
+
+    x = 32.0f;
+
+    for (int i = 0; i < 8; ++i)
+    {
+        padButtons[(size_t) i] = { x, padY, padButtonSize, padButtonSize };
+        padRenameButtons[(size_t) i] = { x + 48.0f, padY - 16.0f, 16.0f, 16.0f };
+
+        padUtilityButtons[(size_t) (i * 2)] = { x, padY + padButtonSize, 32.0f, 32.0f };
+        padUtilityButtons[(size_t) (i * 2 + 1)] = { x + 32.0f, padY + padButtonSize, 32.0f, 32.0f };
+
+        x += padButtonSize + padButtonGap;
+    }
 }
 
 void MainComponent::activateXYPad()
 {
     xyPadActivated = true;
     selectedTopButton = 0;
+    selectedOnsetIndex = 3;
     xyAnimationProgress = 0.0f;
 
     const auto centre = xyPad.getCentre();
@@ -798,8 +1077,8 @@ void MainComponent::updatePointModes()
     {
         xyPoints[(size_t) i]->setRotaryMode (rotaryMode);
         xyPoints[(size_t) i]->setRotaryValue (pointRotaryValues[(size_t) selectedTopButton][(size_t) i]);
-        xyPoints[(size_t) i]->setDevianceValue (pointRotaryValues[5][(size_t) i]);
-        xyPoints[(size_t) i]->setInstabilityValue (pointRotaryValues[4][(size_t) i]);
+        xyPoints[(size_t) i]->setDevianceValue (pointRotaryValues[4][(size_t) i]);
+        xyPoints[(size_t) i]->setInstabilityValue (pointRotaryValues[5][(size_t) i]);
         xyPoints[(size_t) i]->setVolumeValue (pointRotaryValues[7][(size_t) i]);
         xyPoints[(size_t) i]->setSelectionPulse (pointSelectionPulse[(size_t) i]);
         xyPoints[(size_t) i]->setSelectedHighlight (selectedPadButton == i);
@@ -868,6 +1147,8 @@ void MainComponent::movePadPoint (int index, juce::Point<float> parentPosition)
         juce::jlimit (safeArea.getY(), safeArea.getBottom(), parentPosition.y)
     };
 
+    pointTargets[(size_t) index] = pointPositions[(size_t) index];
+
     layoutPadPoints();
     repaint (xyPad.toNearestInt());
 }
@@ -880,14 +1161,17 @@ void MainComponent::setPointRotaryValue (int index, float value)
     pointRotaryValues[(size_t) selectedTopButton][(size_t) index] = juce::jlimit (0.0f, 1.0f, value);
     xyPoints[(size_t) index]->setRotaryValue (pointRotaryValues[(size_t) selectedTopButton][(size_t) index]);
 
-    if (selectedTopButton == 5)
-        xyPoints[(size_t) index]->setDevianceValue (pointRotaryValues[5][(size_t) index]);
-
     if (selectedTopButton == 4)
-        xyPoints[(size_t) index]->setInstabilityValue (pointRotaryValues[4][(size_t) index]);
+        xyPoints[(size_t) index]->setDevianceValue (pointRotaryValues[4][(size_t) index]);
+
+    if (selectedTopButton == 5)
+        xyPoints[(size_t) index]->setInstabilityValue (pointRotaryValues[5][(size_t) index]);
 
     if (selectedTopButton == 7)
         xyPoints[(size_t) index]->setVolumeValue (pointRotaryValues[7][(size_t) index]);
+
+    if (selectedTopButton > 0)
+        repaint (topButtons[(size_t) selectedTopButton].toNearestInt());
 
     if ((selectedTopButton == 4 || selectedTopButton == 5) && hasActiveDevianceMotion() && ! isTimerRunning())
         startTimerHz (60);
@@ -901,6 +1185,44 @@ void MainComponent::selectPadFromPoint (int index, bool shouldTriggerPulse)
         triggerSelectionPulse (index);
 
     updatePointModes();
+    repaint();
+}
+
+void MainComponent::startPadRename (int index)
+{
+    selectedPadButton = index;
+    triggerSelectionPulse (index);
+    updatePointModes();
+
+    renamingPad = index;
+
+    const auto labelArea = juce::Rectangle<float> (48.0f, 16.0f)
+                               .withPosition (padButtons[(size_t) index].getX(),
+                                              padButtons[(size_t) index].getY() - 16.0f);
+
+    padRenameEditor.setBounds (labelArea.toNearestInt());
+    padRenameEditor.setText (padLabels[(size_t) index], false);
+    padRenameEditor.setVisible (true);
+    padRenameEditor.toFront (true);
+    padRenameEditor.grabKeyboardFocus();
+    padRenameEditor.selectAll();
+}
+
+void MainComponent::finishPadRename (bool shouldCommit)
+{
+    if (renamingPad < 0)
+        return;
+
+    if (shouldCommit)
+    {
+        auto text = padRenameEditor.getText().trim();
+
+        if (text.isNotEmpty())
+            padLabels[(size_t) renamingPad] = text;
+    }
+
+    renamingPad = -1;
+    padRenameEditor.setVisible (false);
     repaint();
 }
 
@@ -923,11 +1245,8 @@ void MainComponent::drawEmptyButton (juce::Graphics& g,
 {
     if (hovered)
     {
-        g.setColour (juce::Colours::white.withAlpha (0.08f));
-        g.fillRoundedRectangle (bounds, 6.0f);
-
-        g.setColour (selectedColour.withAlpha (0.32f));
-        g.drawRoundedRectangle (bounds.reduced (1.0f), 6.0f, 1.2f);
+        g.setColour (juce::Colours::white.withAlpha (0.10f));
+        g.fillRect (bounds);
     }
 
     if (selected)
@@ -935,18 +1254,12 @@ void MainComponent::drawEmptyButton (juce::Graphics& g,
         if (selectedColour == getTopButtonColour (0))
         {
             g.setColour (juce::Colours::white.withAlpha (0.16f));
-            g.fillRoundedRectangle (bounds, 6.0f);
+            g.fillRect (bounds);
         }
         else
         {
-            const auto y = bounds.getBottom() - 4.0f;
-
             g.setColour (selectedColour);
-            g.drawLine (bounds.getX() + 8.0f,
-                        y,
-                        bounds.getRight() - 8.0f,
-                        y,
-                        2.0f);
+            g.drawRect (bounds.reduced (2.0f).toNearestInt(), 2);
         }
     }
 
@@ -985,6 +1298,16 @@ int MainComponent::findClickedButton (const std::array<juce::Rectangle<float>, 2
                                       juce::Point<float> point) const
 {
     for (int i = 0; i < 2; ++i)
+        if (buttons[(size_t) i].contains (point))
+            return i;
+
+    return -1;
+}
+
+int MainComponent::findClickedButton (const std::array<juce::Rectangle<float>, 16>& buttons,
+                                      juce::Point<float> point) const
+{
+    for (int i = 0; i < 16; ++i)
         if (buttons[(size_t) i].contains (point))
             return i;
 
