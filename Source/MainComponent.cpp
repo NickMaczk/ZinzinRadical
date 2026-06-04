@@ -100,18 +100,7 @@ namespace
 
     juce::Colour getPadColour (int index)
     {
-        switch (index)
-        {
-            case 0:  return juce::Colour::fromRGB (0, 229, 255);
-            case 1:  return juce::Colour::fromRGB (255, 43, 214);
-            case 2:  return juce::Colour::fromRGB (255, 91, 31);
-            case 3:  return juce::Colour::fromRGB (178, 255, 36);
-            case 4:  return juce::Colour::fromRGB (155, 92, 255);
-            case 5:  return juce::Colour::fromRGB (56, 130, 255);
-            case 6:  return juce::Colour::fromRGB (255, 218, 46);
-            case 7:  return juce::Colour::fromRGB (255, 58, 92);
-            default: return juce::Colours::white;
-        }
+        return juce::Colour::fromHSV ((float) index / 8.0f, 0.75f, 0.95f, 0.95f);
     }
 }
 
@@ -339,7 +328,7 @@ void PadPoint::mouseDown (const juce::MouseEvent& e)
     owner.selectPadFromPoint (index, ! rotaryMode);
 
     if (auto* parent = getParentComponent())
-        dragStartY = e.getEventRelativeTo (parent).position.y;
+        dragStartY = owner.toBasePoint (e.getEventRelativeTo (parent).position).y;
 
     dragStartValue = rotaryValue;
 }
@@ -348,7 +337,7 @@ void PadPoint::mouseDrag (const juce::MouseEvent& e)
 {
     if (auto* parent = getParentComponent())
     {
-        const auto parentPos = e.getEventRelativeTo (parent).position;
+        const auto parentPos = owner.toBasePoint (e.getEventRelativeTo (parent).position);
 
         if (rotaryMode)
         {
@@ -418,7 +407,7 @@ float PadPoint::getRotaryValue() const
 //==============================================================================
 MainComponent::MainComponent()
 {
-    guideImage = juce::ImageFileFormat::loadFrom (findGuideImageFile());
+    guideImage = juce::ImageCache::getFromMemory (BinaryData::guide_png, BinaryData::guide_pngSize);
 
     for (int i = 0; i < 8; ++i)
     {
@@ -457,14 +446,31 @@ MainComponent::~MainComponent()
 {
 }
 
+float MainComponent::getUiScale() const
+{
+    return (float) getWidth() / 632.0f;
+}
+
+juce::Point<float> MainComponent::toBasePoint (juce::Point<float> point) const
+{
+    const auto scale = getUiScale();
+
+    if (scale <= 0.0f)
+        return point;
+
+    return { point.x / scale, point.y / scale };
+}
+
 void MainComponent::paint (juce::Graphics& g)
 {
     g.fillAll (juce::Colour::fromRGB (18, 18, 20));
 
+    g.addTransform (juce::AffineTransform::scale (getUiScale()));
+
     if (guideImage.isValid())
     {
         g.drawImage (guideImage,
-                     getLocalBounds().toFloat(),
+                     juce::Rectangle<float> (0.0f, 0.0f, 632.0f, 944.0f),
                      juce::RectanglePlacement::stretchToFit);
     }
 
@@ -505,7 +511,8 @@ void MainComponent::paint (juce::Graphics& g)
 
                 if (bipolar)
                 {
-                    const float signedValue = (value - 0.5f) * 2.0f;
+                    const float displayedValue = i == 6 ? 1.0f - value : value;
+                    const float signedValue = (displayedValue - 0.5f) * 2.0f;
                     const float centreY = valueArea.getCentreY();
                     const float h = std::abs (signedValue) * valueArea.getHeight() * 0.5f;
 
@@ -560,7 +567,7 @@ void MainComponent::paint (juce::Graphics& g)
                 ? waveArea.getRight()
                 : waveArea.getX() + waveArea.getWidth() * onsetPositions[(size_t) selectedOnsetIndex + 1];
 
-            g.setColour (juce::Colours::white.withAlpha (0.33f));
+            g.setColour (getTopButtonColour (3).withAlpha (0.20f));
             g.fillRect (juce::Rectangle<float> (leftEdge,
                                                 waveArea.getY(),
                                                 rightEdge - leftEdge,
@@ -579,6 +586,13 @@ void MainComponent::paint (juce::Graphics& g)
                         2.0f);
         }
 
+        g.setColour (juce::Colours::white.withAlpha (0.64f));
+        g.setFont (juce::FontOptions (11.0f));
+        g.drawFittedText (sampleFileName,
+                          waveArea.reduced (10.0f, 4.0f).toNearestInt(),
+                          juce::Justification::topLeft,
+                          1);
+
     }
     else
     {
@@ -588,15 +602,6 @@ void MainComponent::paint (juce::Graphics& g)
                           samplePlayer.toNearestInt(),
                           juce::Justification::centred,
                           1);
-    }
-
-    for (int i = 0; i < 2; ++i)
-    {
-        drawEmptyButton (g,
-                         sampleButtons[(size_t) i],
-                         false,
-                         hoveredSampleButton == i,
-                         juce::Colours::white);
     }
 
     for (int i = 0; i < 8; ++i)
@@ -669,6 +674,8 @@ void MainComponent::paint (juce::Graphics& g)
 
 void MainComponent::paintOverChildren (juce::Graphics& g)
 {
+    g.addTransform (juce::AffineTransform::scale (getUiScale()));
+
     drawPointConnections (g);
 
     if (draggingPadExport)
@@ -689,7 +696,7 @@ void MainComponent::resized()
 
 void MainComponent::mouseDown (const juce::MouseEvent& e)
 {
-    const auto point = e.position;
+    const auto point = toBasePoint (e.position);
 
     if (const auto button = findClickedButton (topButtons, point); button >= 0)
     {
@@ -743,7 +750,7 @@ void MainComponent::mouseDrag (const juce::MouseEvent& e)
     if (pressedPadUtilityButton >= 0 && (pressedPadUtilityButton % 2) == 1)
     {
         draggingPadExport = true;
-        exportDragPosition = e.position;
+        exportDragPosition = toBasePoint (e.position);
         repaint();
     }
 }
@@ -760,7 +767,7 @@ void MainComponent::mouseUp (const juce::MouseEvent&)
 
 void MainComponent::mouseMove (const juce::MouseEvent& e)
 {
-    const auto point = e.position;
+    const auto point = toBasePoint (e.position);
 
     const auto newHoveredTopButton = findClickedButton (topButtons, point);
     const auto newHoveredPadButton = findClickedButton (padButtons, point);
@@ -807,7 +814,9 @@ bool MainComponent::isInterestedInFileDrag (const juce::StringArray& files)
 
 void MainComponent::filesDropped (const juce::StringArray& files, int x, int y)
 {
-    if (! samplePlayer.contains (juce::Point<float> ((float) x, (float) y)))
+    const auto dropPoint = toBasePoint ({ (float) x, (float) y });
+
+    if (! samplePlayer.contains (dropPoint))
         return;
 
     if (files.isEmpty())
@@ -992,6 +1001,7 @@ bool MainComponent::loadWaveformFromWavFile (const juce::File& file)
         for (auto& peak : waveformPeaks)
             peak = juce::jlimit (0.0f, 1.0f, peak / maxPeak);
 
+    sampleFileName = file.getFileName();
     sampleLoaded = true;
     return true;
 }
@@ -1092,6 +1102,7 @@ void MainComponent::layoutPadPoints()
         if (xyPoints[(size_t) i] == nullptr)
             continue;
 
+        xyPoints[(size_t) i]->setTransform (juce::AffineTransform::scale (getUiScale()));
         xyPoints[(size_t) i]->setBounds (juce::Rectangle<float> (pointComponentSize, pointComponentSize)
                                              .withCentre (pointPositions[(size_t) i])
                                              .toNearestInt());
@@ -1150,7 +1161,7 @@ void MainComponent::movePadPoint (int index, juce::Point<float> parentPosition)
     pointTargets[(size_t) index] = pointPositions[(size_t) index];
 
     layoutPadPoints();
-    repaint (xyPad.toNearestInt());
+    repaint();
 }
 
 void MainComponent::setPointRotaryValue (int index, float value)
@@ -1171,7 +1182,7 @@ void MainComponent::setPointRotaryValue (int index, float value)
         xyPoints[(size_t) index]->setVolumeValue (pointRotaryValues[7][(size_t) index]);
 
     if (selectedTopButton > 0)
-        repaint (topButtons[(size_t) selectedTopButton].toNearestInt());
+        repaint();
 
     if ((selectedTopButton == 4 || selectedTopButton == 5) && hasActiveDevianceMotion() && ! isTimerRunning())
         startTimerHz (60);
@@ -1200,6 +1211,7 @@ void MainComponent::startPadRename (int index)
                                .withPosition (padButtons[(size_t) index].getX(),
                                               padButtons[(size_t) index].getY() - 16.0f);
 
+    padRenameEditor.setTransform (juce::AffineTransform::scale (getUiScale()));
     padRenameEditor.setBounds (labelArea.toNearestInt());
     padRenameEditor.setText (padLabels[(size_t) index], false);
     padRenameEditor.setVisible (true);

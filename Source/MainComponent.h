@@ -72,6 +72,9 @@ private:
 
     void timerCallback() override;
 
+    float getUiScale() const;
+    juce::Point<float> toBasePoint (juce::Point<float> point) const;
+
     bool hasActiveDevianceMotion() const;
     bool hasActiveSelectionPulse() const;
 
@@ -127,6 +130,7 @@ private:
     std::array<juce::Rectangle<float>, 2> sampleButtons;
 
     std::vector<float> waveformPeaks;
+    juce::String sampleFileName;
     bool sampleLoaded = false;
 
     juce::Image guideImage;
