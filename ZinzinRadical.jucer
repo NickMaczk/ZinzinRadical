@@ -8,8 +8,14 @@
       <FILE id="BqrWog" name="MainComponent.h" compile="0" resource="0" file="Source/MainComponent.h"/>
       <FILE id="KFdRsl" name="MainComponent.cpp" compile="1" resource="0"
             file="Source/MainComponent.cpp"/>
+      <FILE id="ZnPgH1" name="ZinzinPage.h" compile="0" resource="0" file="Source/ZinzinPage.h"/>
+      <FILE id="ZnPgC1" name="ZinzinPage.cpp" compile="1" resource="0" file="Source/ZinzinPage.cpp"/>
+      <FILE id="PlUxH1" name="PluginUxPage.h" compile="0" resource="0" file="Source/PluginUxPage.h"/>
+      <FILE id="PlUxC1" name="PluginUxPage.cpp" compile="1" resource="0"
+            file="Source/PluginUxPage.cpp"/>
     </GROUP>
     <FILE id="g9WHi7" name="guide.png" compile="0" resource="1" file="Assets/guide.png"/>
+    <FILE id="HJCLLt" name="guide2.png" compile="0" resource="1" file="Assets/guide2.png"/>
   </MAINGROUP>
   <MODULES>
     <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>

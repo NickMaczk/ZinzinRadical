@@ -292,6 +292,12 @@
     <ClCompile Include="..\..\Source\MainComponent.cpp">
       <Filter>ZinzinRadical\Source</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Source\ZinzinPage.cpp">
+      <Filter>ZinzinRadical\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\PluginUxPage.cpp">
+      <Filter>ZinzinRadical\Source</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\JUCE\modules\juce_core\containers\juce_AbstractFifo.cpp">
       <Filter>JUCE Modules\juce_core\containers</Filter>
     </ClCompile>
@@ -1990,6 +1996,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Source\MainComponent.h">
+      <Filter>ZinzinRadical\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\ZinzinPage.h">
+      <Filter>ZinzinRadical\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\PluginUxPage.h">
       <Filter>ZinzinRadical\Source</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\JUCE\modules\juce_core\containers\juce_AbstractFifo.h">
@@ -4356,6 +4368,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\Assets\guide.png">
+      <Filter>ZinzinRadical</Filter>
+    </None>
+    <None Include="..\..\Assets\guide2.png">
       <Filter>ZinzinRadical</Filter>
     </None>
     <None Include="..\..\..\JUCE\modules\juce_core\native\java\README.txt">

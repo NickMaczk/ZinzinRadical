@@ -71,13 +71,6 @@ public:
             setFullScreen (true);
            #else
             setResizable (true, true);
-
-            if (auto* constrainer = getConstrainer())
-            {
-                constrainer->setFixedAspectRatio (632.0 / 944.0);
-                constrainer->setSizeLimits (316, 472, 1264, 1888);
-            }
-
             centreWithSize (getWidth(), getHeight());
            #endif
 

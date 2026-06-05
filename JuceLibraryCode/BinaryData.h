@@ -9,10 +9,13 @@
 namespace BinaryData
 {
     extern const char*   guide_png;
-    const int            guide_pngSize = 72419;
+    const int            guide_pngSize = 65464;
+
+    extern const char*   guide2_png;
+    const int            guide2_pngSize = 92601;
 
     // Number of elements in the namedResourceList and originalFileNames arrays.
-    const int namedResourceListSize = 1;
+    const int namedResourceListSize = 2;
 
     // Points to the start of a list of resource names.
     extern const char* namedResourceList[];
